@@ -47,6 +47,7 @@ from openexecutive.api.routes import (
     skill_drafts,
     skills,
     today,
+    version,
     watchlist,
     workflow_designer,
     workflows,
@@ -281,6 +282,11 @@ async def _start_mcp_gateway(
         # call_tool doesn't wait on the search. Held on app.state: a bare
         # create_task is only weakly referenced.
         app.state.mcp_prime_task = asyncio.create_task(gateway.prime_pinned_tools())
+
+    # Say which mail/calendar backends the fixed code paths will use, and warn
+    # (never fail) when a chosen backend's server is not in the config.
+    from openexecutive.integrations.workspace.registry import log_provider_status
+    log_provider_status(settings, config_path)
 
     from openexecutive.integrations.email_poller import run_email_poller
     return asyncio.create_task(run_email_poller(gateway))
@@ -959,6 +965,7 @@ def create_app() -> FastAPI:
     app.include_router(architecture.router, tags=["architecture"])
     app.include_router(guide.router, tags=["guide"])
     app.include_router(health.router, tags=["health"])
+    app.include_router(version.router, tags=["health"])
     app.include_router(setup_status.router, tags=["setup"])
 
     # Expose Open Executive as an MCP server at /mcp (Streamable-HTTP). Gated

@@ -7,7 +7,7 @@
 
 Open Executive is designed to transform leadership and management. Highly configurable, it can be deployed at any management level. Out of the box it supports spend approval thresholds, integration with corporate knowledge systems, and defined governance for how it interacts with human colleagues and other AI systems. Open Executive can also act as a busy leader's digital twin: with **Act as me** switched on, it drafts email in their own voice, from their own Gmail, for them to review and send—so leaders can truly scale their impact through AI without giving up the final say.
 
-It meets people where they already work, with integrations for Slack, Discord, Telegram, email, Google Workspace, Notion and any MCP-compatible AI tool, with more on the roadmap. Open Executive will always be open source.
+It meets people where they already work, with integrations for Slack, Discord, Telegram, email, Google Workspace, Microsoft 365 (Outlook mail and calendar), Notion and any MCP-compatible AI tool, with more on the roadmap. Open Executive will always be open source.
 
 A managed cloud offering is coming (https://openexecutive.ai), where you can get access without deploying anything yourself.
 
@@ -321,6 +321,11 @@ published release, and `main` for the current head of `main`. The available vers
 each package's page under the repository's Packages. See
 [docs/deployment.md](docs/deployment.md#images) for how releases are cut.
 
+**Upgrading.** Settings → About shows the running version and says when a newer
+release is out (`UPDATE_CHECK_ENABLED=false` turns the check off). To upgrade,
+back up, then rebuild or pull the new tag; see
+[docs/deployment.md](docs/deployment.md#upgrading).
+
 > **⚠️ Single-instance only**: the scheduler claims rows via `UPDATE … RETURNING`,
 > which is not safe across processes. A second API replica double-fires every
 > scheduled action. Pin the API to one instance. The UI is stateless.
@@ -354,7 +359,7 @@ the app refuses to start.
 | `ROUTING_MODEL` | No | `claude-haiku-4-5` | Model for intent routing |
 | `SLACK_BOT_TOKEN` | No | — | Slack bot OAuth token |
 | `SLACK_APP_TOKEN` | No | — | Slack socket mode token |
-| `EXEC_EMAIL_ADDRESS` | No | — | Executive Gmail address (Gmail MCP OAuth) |
+| `EXEC_EMAIL_ADDRESS` | No | — | The Executive's own mailbox (Gmail via Google Workspace MCP, or Outlook via Microsoft 365 MCP) |
 | `EMAIL_POLL_INTERVAL_SECONDS` | No | `60` | How often to poll for new email |
 | `TELEGRAM_BOT_TOKEN` | No | — | Telegram bot token (from @BotFather) |
 | `TELEGRAM_WEBHOOK_SECRET` | No | — | Random string for webhook validation |
@@ -366,6 +371,12 @@ the app refuses to start.
 | `GOOGLE_CHAT_SERVICE_ACCOUNT_FILE` | No | — | Path to service account JSON key |
 | `GOOGLE_OAUTH_CLIENT_ID` | No | — | Google OAuth client ID (Gmail MCP) |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | No | — | Google OAuth client secret (Gmail MCP) |
+| `MS365_MCP_CLIENT_ID` | No | — | Entra app registration client ID (Microsoft 365 MCP: Outlook mail + calendar) |
+| `MS365_MCP_TENANT_ID` | No | `common` | Entra tenant ID for the Microsoft 365 MCP sign-in |
+| `MS365_MCP_CLIENT_SECRET` | No | — | Entra client secret (only for a confidential app registration) |
+| `MS365_MCP_EXPECTED_USERNAME` | No | — | Pin the Microsoft 365 sign-in to this mailbox UPN |
+| `EMAIL_PROVIDER` | No | `google` | Backend for the inbound mailbox poller + alert email: `google` or `microsoft` |
+| `CALENDAR_PROVIDER` | No | `google` | Backend for the typed calendar booking tools: `google` or `microsoft` |
 | `OPENROUTER_ENABLED` | No | `false` | Route Claude calls through OpenRouter and unlock non-Anthropic models per-agent in the Council UI |
 | `OPENROUTER_API_KEY` | No | — | Required when `OPENROUTER_ENABLED=true` |
 | `OPENROUTER_CATALOG_ENABLED` | No | `true` | Fetch OpenRouter's live `/models` catalog at startup to populate the Council dropdown; falls back to a built-in list on failure |
