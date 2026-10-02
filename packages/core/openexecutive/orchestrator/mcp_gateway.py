@@ -90,6 +90,10 @@ _FORWARDED_ENV_VARS = (
     "WORKSPACE_MCP_CREDENTIALS_DIR",
     "WORKSPACE_MCP_TOOL_TIER",
     "WORKSPACE_MCP_TOOLS",
+    # Interpolated by extensible-mcp into the github MCP server's env block
+    # (mcp_servers.json), same mechanism as the Google vars above — keeps the
+    # PAT in the API's environment instead of in the config file.
+    "GITHUB_PERSONAL_ACCESS_TOKEN",
 )
 
 # Outbound Gmail tools whose arguments may carry recipients. Any tool name
