@@ -30,6 +30,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 from types import SimpleNamespace
@@ -62,6 +63,13 @@ def _announce_reasoning(slug: str, body: dict[str, Any]) -> None:
             slug,
             body["reasoning"],
         )
+
+
+# Direct api.openai.com gpt-5* models reject `max_tokens` (400
+# unsupported_parameter — they want `max_completion_tokens`). The `^` anchor
+# keeps OpenRouter's `openai/gpt-5` slug out of this path, and the required
+# separator keeps near-misses like `gpt-50` from matching.
+_GPT5_SLUG_RE = re.compile(r"gpt-5(?:[.\-]|$)")
 
 
 # Slugs for which we've already logged the LOCAL_REASONING_EFFORT being
@@ -174,6 +182,8 @@ class OpenAICompatibleProvider:
         slugs never carry a per-call ``reasoning`` object (their spec has
         ``supports_thinking=False``), so there is nothing for it to clash
         with."""
+        if _GPT5_SLUG_RE.match(slug) and "max_tokens" in body:
+            body["max_completion_tokens"] = body.pop("max_tokens")
         if self._reasoning_effort:
             body["reasoning_effort"] = self._reasoning_effort
             _announce_effort(slug, self._reasoning_effort)
