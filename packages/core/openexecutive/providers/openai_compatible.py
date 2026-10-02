@@ -30,10 +30,12 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 from types import SimpleNamespace
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -62,6 +64,16 @@ def _announce_reasoning(slug: str, body: dict[str, Any]) -> None:
             slug,
             body["reasoning"],
         )
+
+
+# api.openai.com gpt-5* models reject `max_tokens` (400 unsupported_parameter
+# — they want `max_completion_tokens`). Both conditions are scoped: the `^`
+# anchor keeps OpenRouter's `openai/gpt-5` slug out, the required separator
+# keeps near-misses like `gpt-50` out, and the conversion only applies when
+# the endpoint itself is api.openai.com — a local server or gateway exposing
+# a `gpt-5*` slug may still honor the classic `max_tokens` contract.
+_GPT5_SLUG_RE = re.compile(r"gpt-5(?:[.\-]|$)")
+_OPENAI_API_HOST = "api.openai.com"
 
 
 # Slugs for which we've already logged the LOCAL_REASONING_EFFORT being
@@ -103,6 +115,11 @@ class OpenAICompatibleProvider:
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
+        # Exact hostname match — a prefix check would also accept lookalikes
+        # like `api.openai.com.example.com`.
+        self._is_openai_api = (
+            urlparse(self._base_url).hostname or ""
+        ).lower() == _OPENAI_API_HOST
         self._client = httpx.AsyncClient(
             base_url=self._base_url,
             headers=default_headers or {},
@@ -174,6 +191,8 @@ class OpenAICompatibleProvider:
         slugs never carry a per-call ``reasoning`` object (their spec has
         ``supports_thinking=False``), so there is nothing for it to clash
         with."""
+        if self._is_openai_api and _GPT5_SLUG_RE.match(slug) and "max_tokens" in body:
+            body["max_completion_tokens"] = body.pop("max_tokens")
         if self._reasoning_effort:
             body["reasoning_effort"] = self._reasoning_effort
             _announce_effort(slug, self._reasoning_effort)

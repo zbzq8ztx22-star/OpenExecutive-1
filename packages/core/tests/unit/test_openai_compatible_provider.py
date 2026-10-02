@@ -141,6 +141,95 @@ def test_reasoning_effort_sent_on_stream() -> None:
     assert stream._body["reasoning_effort"] == "low"  # type: ignore[attr-defined]
 
 
+def _openai_provider() -> OpenAICompatibleProvider:
+    return OpenAICompatibleProvider(
+        base_url="https://api.openai.com/v1",
+        api_key="sk-test",
+    )
+
+
+def test_gpt5_uses_max_completion_tokens() -> None:
+    """Direct api.openai.com gpt-5* rejects `max_tokens` outright (400
+    unsupported_parameter) — it wants `max_completion_tokens` instead."""
+    captured = _run_create(_openai_provider(), model="gpt-5-mini")
+    body = captured["json"]
+    assert body["max_completion_tokens"] == 8
+    assert "max_tokens" not in body
+
+
+def test_gpt5_stream_uses_max_completion_tokens() -> None:
+    provider = _openai_provider()
+    stream = provider.messages_stream(
+        model="gpt-5-mini",
+        max_tokens=8,
+        messages=[{"role": "user", "content": "hi"}],
+    )
+    assert stream._body["max_completion_tokens"] == 8  # type: ignore[attr-defined]
+    assert "max_tokens" not in stream._body  # type: ignore[attr-defined]
+
+
+def test_gpt41_mini_keeps_max_tokens() -> None:
+    """gpt-4.1-mini still takes plain `max_tokens` — the rename is scoped to
+    the direct gpt-5* family, not applied to every model."""
+    captured = _run_create(_openai_provider(), model="gpt-4.1-mini")
+    body = captured["json"]
+    assert body["max_tokens"] == 8
+    assert "max_completion_tokens" not in body
+
+
+def test_openrouter_gpt5_slug_keeps_max_tokens() -> None:
+    """`openai/gpt-5` is the OpenRouter slug — that path's contract is pinned
+    in test_openrouter_translator.py and the direct-OpenAI rename must not
+    leak into it."""
+    captured = _run_create(_openai_provider(), model="openai/gpt-5")
+    body = captured["json"]
+    assert body["max_tokens"] == 8
+    assert "max_completion_tokens" not in body
+
+
+def test_gpt5_on_local_backend_keeps_max_tokens() -> None:
+    """A local server (Ollama etc.) exposing a `gpt-5-mini` slug keeps the
+    classic `max_tokens` contract — the rename is a property of the OpenAI
+    API endpoint, not of the model name."""
+    captured = _run_create(_local_provider(), model="gpt-5-mini")
+    body = captured["json"]
+    assert body["max_tokens"] == 8
+    assert "max_completion_tokens" not in body
+
+
+def test_gpt5_on_non_openai_gateway_keeps_max_tokens() -> None:
+    """An OpenAI-compatible gateway is not api.openai.com — it may front a
+    backend that still wants `max_tokens`."""
+    provider = OpenAICompatibleProvider(
+        base_url="https://gateway.example.com/v1", api_key="sk-test"
+    )
+    captured = _run_create(provider, model="gpt-5-mini")
+    body = captured["json"]
+    assert body["max_tokens"] == 8
+    assert "max_completion_tokens" not in body
+
+
+def test_gpt5_on_lookalike_hostname_keeps_max_tokens() -> None:
+    """`api.openai.com.example.com` is NOT the official endpoint — hostname
+    must be compared exactly, not by prefix."""
+    provider = OpenAICompatibleProvider(
+        base_url="https://api.openai.com.example.com/v1", api_key="sk-test"
+    )
+    captured = _run_create(provider, model="gpt-5-mini")
+    body = captured["json"]
+    assert body["max_tokens"] == 8
+    assert "max_completion_tokens" not in body
+
+
+def test_gpt50_slug_is_not_gpt5() -> None:
+    """The family rule needs a separator after `gpt-5` — `gpt-50` must not
+    enter it even on the official endpoint."""
+    captured = _run_create(_openai_provider(), model="gpt-50")
+    body = captured["json"]
+    assert body["max_tokens"] == 8
+    assert "max_completion_tokens" not in body
+
+
 def test_reasoning_effort_logged_once_per_slug(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
